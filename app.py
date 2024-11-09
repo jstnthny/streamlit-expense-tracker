@@ -2,44 +2,79 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
+import os  # For checking if file exists
 
-# Setup data storage
-if 'exepnses' not in st.session_state:
-    st.session_state.expenses = pd.DataFrame({
-    'Date':[],
-    'Amount':[],
-    'Category':[],
-    'Description':[]
+# File path for our CSV
+EXPENSE_FILE = "expenses.csv"
 
+# Function to load expense file aka existing expenses
+def load_expenses():
+    if os.path.exists(EXPENSE_FILE):
+        return pd.read_csv(EXPENSE_FILE, parse_dates=['Date'])
+    return pd.DataFrame({
+        'Date':[],
+        'Amount':[],
+        'Category':[],
+        'Description':[]
     })
 
-# Basic page title and description
-st.title("Expense Tracker")
 
-# Sidebar for input fields
-# st.sidebar creates a left side panel 
+# Save expenses to CSV
+def save_expenses(df):
+    df.to_csv(EXPENSE_FILE, index=False)
+
+# Initialize expenses in session state
+if 'expenses' not in st.session_state:
+    st.session_state.expenses = load_expenses()
+
+# Initialize date value
+if 'date_value' not in st.session_state:
+    st.session_state.date_value = datetime.now()
+
+st.title("Expense Tracker")
 st.sidebar.header("Add New Expense")
 
-# Add input fields to sidebar
-date = st.sidebar.date_input("Date", datetime.now())
-amount = st.sidebar.number_input("Amount ($)", min_value=00.01, step=0.01)
+def update_date():
+    st.session_state.date_value = st.session_state.date_input
+
+# Input fields
+date = st.sidebar.date_input(
+    "Date", 
+    value=st.session_state.date_value, 
+    key="date_input", 
+    on_change=update_date
+)
+amount = st.sidebar.number_input(
+    "Amount ($)", 
+    min_value=0.01, 
+    step=0.01, 
+    key="amount_input"
+)
 category = st.sidebar.selectbox(
     "Category",
-    options=["Food", "Transportation", "Entertainment", "Bills", "Shopping", "Other"]
+    options=["Food", "Transportation", "Entertainment", "Bills", "Shopping", "Other"],
+    key="category_input"
 )
-description = st.sidebar.text_input("Description", placeholder="Enter description...")
+description = st.sidebar.text_input(
+    "Description", 
+    placeholder="Enter description...", 
+    key="description_input"
+)
 
-# Expense button
+# Add expense button
 if st.sidebar.button("Add Expense"):
-    new_expense = pd.DataFrame({
+    new_expenses = pd.DataFrame({
         'Date': [date],
         'Amount': [amount],
         'Category': [category],
         'Description': [description]
     })
-    st.session_state.expenses = pd.concat([st.session_state.expenses, new_expense],
-    ignore_index=True)
-    st.sidebar.success("Expense added")
+    # Add to session state
+    st.session_state.expenses = pd.concat([st.session_state.expenses, new_expenses],
+        ignore_index=True)
+    # Save to CSV
+    save_expenses(st.session_state.expenses)
+    st.sidebar.success("Expense added and saved!")
 
 #  Main page analysis
 if not st.session_state.expenses.empty:
